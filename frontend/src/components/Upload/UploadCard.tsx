@@ -48,7 +48,7 @@ const UploadCard = () => {
 
                 {jobId && (
                     <div className="rounded bg-green-100 p-3 text-green-700 text-sm">
-                        Upload started successfully.
+                        Upload completed successfully.
                         <br />
                         Job ID: {jobId}
                     </div>
