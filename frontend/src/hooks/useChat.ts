@@ -4,23 +4,27 @@ import { v4 as uuid } from "uuid";
 import type { ChatMessage } from "../types/chat";
 import { chatApi } from "../api/chatApi";
 
-export function useChat() {
-    const [messages, setMessages] = useState<ChatMessage[]>([
-        {
-            id: uuid(),
-            role: "assistant",
-            content: "Hello! Upload a document and ask questions.",
-        },
-    ]);
+interface UseChatProps {
+    messages: ChatMessage[];
+    setMessages: React.Dispatch<
+        React.SetStateAction<ChatMessage[]>
+    >;
+    conversationId?: string;
+    setConversationId: React.Dispatch<
+        React.SetStateAction<string | undefined>
+    >;
+}
 
-    const [conversationId, setConversationId] =
-        useState<string>();
+export function useChat({
+    messages,
+    setMessages,
+    conversationId,
+    setConversationId,
+}: UseChatProps) {
 
-    // Waiting for first token
     const [isThinking, setIsThinking] =
         useState(false);
 
-    // Tokens are arriving
     const [isStreaming, setIsStreaming] =
         useState(false);
 
@@ -85,7 +89,8 @@ export function useChat() {
                                     ? {
                                           ...message,
                                           content:
-                                              message.content + token,
+                                              message.content +
+                                              token,
                                       }
                                     : message
                             )
@@ -124,7 +129,8 @@ export function useChat() {
                                           ...message,
                                           citations:
                                               Object.values(
-                                                  data.citations ?? {}
+                                                  data.citations ??
+                                                      {}
                                               ),
                                       }
                                     : message
@@ -153,7 +159,8 @@ export function useChat() {
 
             const message =
                 error instanceof Error &&
-                error.message === "Unauthorized"
+                error.message ===
+                    "Unauthorized"
 
                     ? "🔒 Your session has expired. Please sign in again."
 
@@ -174,11 +181,58 @@ export function useChat() {
 
     };
 
+    const loadConversation = (
+        conversationId: string,
+        history: {
+            role: "user" | "assistant";
+            content: string;
+        }[],
+    ) => {
+
+        setConversationId(conversationId);
+
+        setMessages(
+
+            history.map(message => ({
+
+                id: uuid(),
+
+                role: message.role,
+
+                content: message.content,
+
+            }))
+
+        );
+
+    };
+
+    const newConversation = () => {
+
+        setConversationId(undefined);
+
+        setMessages([
+            {
+                id: uuid(),
+                role: "assistant",
+                content:
+                    "Hello! Upload a document and ask questions.",
+            },
+        ]);
+
+    };
+
     return {
 
         messages,
 
+        conversationId,
+
         sendMessage,
+
+        loadConversation,
+
+        newConversation,
 
         isThinking,
 

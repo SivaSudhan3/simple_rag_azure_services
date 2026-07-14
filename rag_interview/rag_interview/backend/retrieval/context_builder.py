@@ -25,6 +25,8 @@ Content:
             )
         context = "\n\n".join(context)
 
+        print(context)
+
         print("=" * 80)
         print(f"Documents : {len(documents)}")
         print(f"Characters: {len(context)}")

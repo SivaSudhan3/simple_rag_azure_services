@@ -1,5 +1,6 @@
 from pathlib import Path
 import asyncio
+import time
 
 from rag_interview.backend.document_processing.models import (
     DocumentContext,
@@ -21,6 +22,7 @@ from rag_interview.backend.document_processing.enrichment.enricher import (
 from rag_interview.backend.document_processing.chunking.factory import (
     ChunkerFactory,
 )
+from rag_interview.core.telemetry.telemetry_models import TelemetryMetrics
 
 
 class IngestionService:
@@ -68,28 +70,22 @@ class IngestionService:
         self.enricher = ContextEnricher()
         self.semaphore = asyncio.Semaphore(3)
     
+    
 
-    async def _analyze_split(self, split_document, document_context):
-        
-        async with self.semaphore:
-            result = await asyncio.to_thread(
-                self.document_intelligence.analyze,
-                split_document["content"]
-            )
-
-        return AnalyzedDocument(
-            context=document_context,
-            result=result,
-        )
+ 
    
     async def ingest(
         self,
         job_id: str,
         blob_name: str,
         original_filename: str,
+        telemetry: TelemetryMetrics | None = None,
+        
     ) -> None:
 
         print(f"Starting ingestion: {job_id}")
+
+        overall_start = time.perf_counter()
 
         # ---------------------------------------------------
         # Download document from Azure Blob Storage
@@ -113,22 +109,24 @@ class IngestionService:
         # Split PDF
         # ---------------------------------------------------
 
-        split_documents = self.splitter.split(
-            document
+        t = time.perf_counter()
+        
+
+        analyzed_documents = await self.document_intelligence.analyze_adaptive(
+            document=document,
+            document_context=document_context,
+            splitter=self.splitter,
+            semaphore=self.semaphore,
         )
 
 
-        tasks = [
-            self._analyze_split(
-                split_document,
-                document_context,
-            )
-            for split_document in split_documents
-        ]
-
-        analyzed_documents = await asyncio.gather(*tasks)
 
 
+        if telemetry:
+            telemetry.timings.document_analysis_ms = (time.perf_counter()-t)*1000
+            telemetry.ingestion.documents_processed = 1
+            telemetry.ingestion.pages_processed = (self.splitter.page_count(document))
+                    
 
         print("Document Intelligence completed")
 
@@ -154,6 +152,23 @@ class IngestionService:
 
         print(blocks[0])
 
+        print("=" * 120)
+        print("LAYOUT BLOCKS")
+        print("=" * 120)
+
+        for i, block in enumerate(blocks):
+
+            print(f"\nBLOCK {i+1}")
+            print(f"Page        : {block.page_number}")
+            print(f"Type        : {block.content_type}")
+            print(f"Characters  : {len(block.content)}")
+
+            print("-" * 80)
+            print(block.content)
+            print("-" * 80)
+        
+                
+
         # ---------------------------------------------------
         # Context Enrichment
         # ---------------------------------------------------
@@ -174,9 +189,15 @@ class IngestionService:
             "parent_child"
         )
 
+        t = time.perf_counter()
+
         chunks = chunker.create_chunks(
             enriched_blocks
         )
+
+        if telemetry:
+            telemetry.timings.chunking_ms = (time.perf_counter()-t)*1000
+            telemetry.ingestion.chunks_created = len(chunks)
 
         print(
             f"Created {len(chunks)} chunks"
@@ -186,9 +207,15 @@ class IngestionService:
         # Embeddings
         # ---------------------------------------------------
 
+        t = time.perf_counter()
+
         valid_chunks, vectors = await self.embedding_service.embed_documents(
             chunks
         )
+
+        if telemetry:
+            telemetry.timings.embedding_generation_ms = (time.perf_counter()-t)*1000
+            telemetry.ingestion.embeddings_generated = len(valid_chunks)
 
         print("Embeddings generated")
 
@@ -196,10 +223,18 @@ class IngestionService:
         # Azure AI Search
         # ---------------------------------------------------
 
+        t = time.perf_counter()
+
         await self.search_service.index_chunks(
+            chunks,
             valid_chunks,
             vectors
         )
+
+        if telemetry:
+            telemetry.timings.indexing_ms = (time.perf_counter()-t)*1000
+            telemetry.timings.ingestion_total_ms = (time.perf_counter()-overall_start)*1000
+            telemetry.ingestion.vectors_indexed = len(valid_chunks)
 
         print(
             f"Ingestion completed successfully "

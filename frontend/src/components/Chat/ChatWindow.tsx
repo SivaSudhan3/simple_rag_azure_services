@@ -4,16 +4,26 @@ import MessageBubble from "./MessageBubble";
 import ChatInput from "./chatInput";
 import TypingIndicator from "./TypingIndicator";
 
-import { useChat } from "../../hooks/useChat";
+import type { ChatMessage } from "../../types/chat";
 
-const ChatWindow = () => {
+interface Props {
 
-    const {
-        messages,
-        sendMessage,
-        isThinking,
-        isStreaming,
-    } = useChat();
+    messages: ChatMessage[];
+
+    sendMessage: (question: string) => Promise<void>;
+
+    isThinking: boolean;
+
+    isStreaming: boolean;
+
+}
+
+const ChatWindow = ({
+    messages,
+    sendMessage,
+    isThinking,
+    isStreaming,
+}: Props) => {
 
     const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -45,7 +55,7 @@ const ChatWindow = () => {
                             isStreaming={
                                 isStreaming &&
                                 message.id ===
-                                    messages[messages.length - 1].id
+                                    messages[messages.length - 1]?.id
                             }
                         />
 

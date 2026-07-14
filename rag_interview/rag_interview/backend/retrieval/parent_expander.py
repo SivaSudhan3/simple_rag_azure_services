@@ -1,4 +1,7 @@
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ParentExpander:
@@ -13,7 +16,14 @@ class ParentExpander:
         self.max_parents = max_parents
         self.max_tokens = max_tokens
 
-    async def expand(self, child_chunks):
+    async def expand(
+        self,
+        child_chunks,
+    ):
+
+        # ---------------------------------------
+        # Collect unique parent IDs
+        # ---------------------------------------
 
         parent_ids = []
         seen = set()
@@ -35,27 +45,69 @@ class ParentExpander:
                 break
 
         if not parent_ids:
+            logger.info("Parent Expansion : No parent IDs found")
             return {}
+
+        logger.info(
+            "Parent Expansion : Fetching %d parent(s)",
+            len(parent_ids),
+        )
+
+        # ---------------------------------------
+        # Fetch parents concurrently
+        # ---------------------------------------
 
         parents = await asyncio.gather(
             *[
                 self.search.get_document(parent_id)
                 for parent_id in parent_ids
-            ]
+            ],
+            return_exceptions=True,
         )
 
-        parent_map = {}
+        # ---------------------------------------
+        # Build parent map within token budget
+        # ---------------------------------------
 
+        parent_map = {}
         current_tokens = 0
 
         for parent in parents:
 
-            estimated_tokens = len(parent["content"]) // 4
+            if isinstance(parent, Exception):
 
-            if current_tokens + estimated_tokens > self.max_tokens:
+                logger.warning(
+                    "Failed to fetch parent document: %s",
+                    parent,
+                )
+
+                continue
+
+            estimated_tokens = len(
+                parent["content"]
+            ) // 4
+
+            if (
+                current_tokens
+                + estimated_tokens
+                > self.max_tokens
+            ):
+
+                logger.info(
+                    "Skipping parent %s (token budget exceeded)",
+                    parent["id"],
+                )
+
                 continue
 
             parent_map[parent["id"]] = parent
+
             current_tokens += estimated_tokens
+
+        logger.info(
+            "Parent Expansion : Expanded %d parent(s), Estimated Tokens=%d",
+            len(parent_map),
+            current_tokens,
+        )
 
         return parent_map

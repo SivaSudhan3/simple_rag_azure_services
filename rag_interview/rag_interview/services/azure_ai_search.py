@@ -48,30 +48,37 @@ class AzureSearchService:
 
     async def index_chunks(
         self,
-        chunks,
+        all_chunks,
+        embedded_chunks,
         vectors,
     ):
-
+        vector_lookup = {
+            chunk.id: vector
+            for chunk, vector in zip(
+                embedded_chunks,
+                vectors,
+            )
+        }
         
 
         documents = []
 
-        for chunk, vector in zip(
-            chunks,
-            vectors,
-        ):
+        for chunk in all_chunks:
 
-            documents.append(
-                {
-                    "id": chunk.id,
-                    "content": chunk.content,
-                    "embedding": vector,
-                    "chunk_type": chunk.chunk_type,
-                    "parent_id": chunk.parent_id,
-                    "metadata": str(chunk.metadata),
-                }
-            )
+            document = {
+                "id": chunk.id,
+                "content": chunk.content,
+                "chunk_type": chunk.chunk_type,
+                "parent_id": chunk.parent_id,
+                "metadata": str(chunk.metadata),
+            }
 
+            vector = vector_lookup.get(chunk.id)
+
+            if vector is not None:
+                document["embedding"] = vector
+
+            documents.append(document)
 
         
      

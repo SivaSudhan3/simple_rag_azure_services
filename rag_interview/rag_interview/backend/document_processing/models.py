@@ -18,6 +18,9 @@ class DocumentContext(BaseModel):
 
     file_type: str
 
+    # NEW
+    page_offset: int = 0
+
     created_at: str = Field(
         default_factory=lambda:
             datetime.utcnow().isoformat()

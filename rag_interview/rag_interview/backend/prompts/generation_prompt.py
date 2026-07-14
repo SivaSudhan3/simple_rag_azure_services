@@ -20,6 +20,8 @@ If the answer is not present, say:
 "I couldn't find the answer in the provided documents."
 
 Always be factual.
+Always format explanations using Markdown.
+
 """
         ),
 

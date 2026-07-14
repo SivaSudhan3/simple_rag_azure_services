@@ -1,5 +1,10 @@
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+
+from rag_interview.core.telemetry.telemetry_models import (
+    TelemetryMetrics,
+)
 
 
 class RetrievedDocument(BaseModel):
@@ -19,41 +24,66 @@ class RetrievedDocument(BaseModel):
     metadata: Dict[str, Any] = {}
 
 
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
-
-
 class GraphSchema(BaseModel):
 
+    # -----------------------------------------------------
     # Request
+    # -----------------------------------------------------
+
     request_id: str
     user_id: str
     conversation_id: Optional[str] = None
 
+    # -----------------------------------------------------
     # Input
+    # -----------------------------------------------------
+
     question: str
 
-    chat_history: List[Dict[str, str]] = Field(default_factory=list)
+    chat_history: List[Dict[str, str]] = Field(
+        default_factory=list
+    )
 
+    # -----------------------------------------------------
     # Retrieval
-    documents: List[RetrievedDocument] = Field(default_factory=list)
+    # -----------------------------------------------------
+
+    documents: List[RetrievedDocument] = Field(
+        default_factory=list
+    )
 
     context: str = ""
 
+    citation_map: Dict[int, Dict[str, Any]] = Field(
+        default_factory=dict
+    )
+
+    # -----------------------------------------------------
     # Generation
+    # -----------------------------------------------------
+
     answer: str = ""
 
+    # -----------------------------------------------------
     # Security
+    # -----------------------------------------------------
+
     is_safe: bool = True
     risk_score: float = 0.0
     attack_detected: bool = False
     blocked_reason: Optional[str] = None
 
+    # -----------------------------------------------------
     # Evaluation
+    # -----------------------------------------------------
+
     grounded_score: float = 0.0
     relevance_score: float = 0.0
 
-    # Observability
-    metrics: Dict[str, Any] = Field(default_factory=dict)
+    # -----------------------------------------------------
+    # Telemetry
+    # -----------------------------------------------------
 
-    citation_map: Dict[int, Dict[str, Any]] = Field(default_factory=dict)
+    telemetry: TelemetryMetrics = Field(
+        default_factory=TelemetryMetrics
+    )

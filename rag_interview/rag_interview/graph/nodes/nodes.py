@@ -1,8 +1,7 @@
+
 from rag_interview.agents.security.prompt_injection_agent import PromptInjectionAgent
 
-
 from rag_interview.graph.graph_schema import GraphSchema
-
 
 
 class Nodes:
@@ -66,26 +65,23 @@ class Nodes:
         state: GraphSchema
     ):
 
-        
-
         result = await self.retrieval_agent.retrieve(
-                 question=state.question,
-                 chat_history=state.chat_history
-            )
+            question=state.question,
+            chat_history=state.chat_history,
+            telemetry=state.telemetry,
+        )
 
-        state.documents= result.get(
-                "documents",
-                []
-            )
+        state.documents = result.get(
+            "documents",
+            []
+        )
 
         state.context = result.get(
-                "context",
-                ""
-            )
+            "context",
+            ""
+        )
 
         state.citation_map = result["citation_map"]
-
-          
 
         return state
 
@@ -97,14 +93,22 @@ class Nodes:
         return await self.generation_agent.generate(
             state
         )
+
     async def grounding_node(
-    self,
-    state: GraphSchema
+        self,
+        state: GraphSchema
     ):
 
         return await self.grounding_agent.evaluate(
             state
         )
-    async def generation_stream(self, state):
-        async for token in self.generation_agent.stream_generate(state):
+
+    async def generation_stream(
+        self,
+        state,
+    ):
+
+        async for token in self.generation_agent.stream_generate(
+            state
+        ):
             yield token

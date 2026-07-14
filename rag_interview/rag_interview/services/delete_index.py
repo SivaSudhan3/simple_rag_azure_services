@@ -11,28 +11,25 @@ async def delete_documents() -> int:
 
     client = get_search_service().client
 
-    try:
-        results = await client.search(
+    
+    results = await client.search(
             search_text="*",
             select=["id"],
         )
 
-        documents = []
+    documents = []
 
-        async for doc in results:
+    async for doc in results:
             documents.append(
                 {
                     "id": doc["id"]
                 }
             )
 
-        print(f"Found {len(documents)} documents")
+    print(f"Found {len(documents)} documents")
 
-        if documents:
+    if documents:
             await client.delete_documents(documents=documents)
             print("Deleted successfully")
 
-        return len(documents)
-
-    finally:
-        await client.close()
+    return len(documents)
